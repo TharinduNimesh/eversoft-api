@@ -1,9 +1,12 @@
 import { HttpException, HttpStatus, Injectable } from '@nestjs/common';
-import { MailService } from 'src/mail/mail.service';
 import { PrismaService } from 'src/prisma/prisma.service';
-import RegisterRequest from './request/register.request';
+import { RegisterRequest, LoginRequest } from './request/index';
 import * as bcrypt from 'bcrypt';
 import { ConfigService } from '@nestjs/config';
+import { JwtService } from '@nestjs/jwt';
+import { user } from '@prisma/client';
+import { MailService } from 'src/mail/mail.service';
+import { UserService } from 'src/user/user.service';
 
 @Injectable()
 export class AuthService {
@@ -11,23 +14,14 @@ export class AuthService {
     private mailService: MailService,
     private prisma: PrismaService,
     private configService: ConfigService,
+    private jwt: JwtService,
+    private userService: UserService,
   ) {}
 
   async register(data: RegisterRequest) {
     // check if user already exists
-    let user = await this.prisma.user.findUnique({
-      where: {
-        email: data.email,
-      },
-    });
-
-    // throw an error if user already exists
-    if (user) {
-      throw new HttpException(
-        'User already exists with given email address',
-        HttpStatus.BAD_REQUEST,
-      );
-    }
+    let user: user = await this.userService.findOne(data.email);
+    if (user) return null;
 
     // validate user email & get user type
     const COMPANY_EMAIL_REGEX = /eversoft\.lk$/;
@@ -46,16 +40,7 @@ export class AuthService {
     }
 
     // store user in the DB
-    user = await this.prisma.user.create({
-      data: {
-        name: data.name,
-        email: data.email,
-        password: bcrypt.hashSync(data.password, 12),
-        is_verified: 0,
-        user_type_id,
-        created_at: new Date(),
-      },
-    });
+    user = await this.userService.create(data, user_type_id);
 
     // generate verification code and store in DB
     const verificationCode = this.generateCode();
@@ -74,13 +59,27 @@ export class AuthService {
       },
     });
 
+    return user;
+  }
+
+  async login(data: LoginRequest) {
+    const user = await this.prisma.user.findUnique({
+      where: {
+        email: data.email,
+      },
+    });
+
+    if (!user) {
+      throw new HttpException('Invalid credentials', HttpStatus.BAD_REQUEST);
+    }
+    const token = await this.createAccessToken(user);
+
     return {
-      status: 'Success',
-      message: 'User registered successfully',
+      token,
     };
   }
 
-  private async storeVerificationCode(user_id: number, code: string, type: number) {
+  async storeVerificationCode(user_id: number, code: string, type: number) {
     const date = new Date();
     // Add 15 minutes as milliseconds
     const millisecondsToAdd = 15 * 60 * 1000;
@@ -96,7 +95,20 @@ export class AuthService {
     });
   }
 
-  private generateCode(length: number = 20): string {
+  async createAccessToken(user: user) {
+    const payload = {
+      id: user.id,
+      name: user.name,
+      email: user.email,
+    };
+    const token: string = await this.jwt.signAsync(payload, {
+      secret: this.configService.get('JWT_ACCESS_TOKEN_SECRET'),
+      expiresIn: this.configService.get('JWT_ACCESS_TOKEN_EXPIRES_IN'),
+    });
+    return token;
+  }
+
+  generateCode(length: number = 20): string {
     const ALLOWED_CHARS: string =
       'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
     const CHARS_LENGTH = ALLOWED_CHARS.length;

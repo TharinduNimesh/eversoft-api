@@ -1,6 +1,6 @@
 import { IsEmail, IsNotEmpty, IsString, IsStrongPassword } from "class-validator";
 
-export default class RegisterRequest {
+export class RegisterRequest {
     @IsString()
     @IsNotEmpty()
     name: string;
