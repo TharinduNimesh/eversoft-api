@@ -1,5 +1,5 @@
 export default interface MailRequest {
-  from: string;
+  from?: string;
   to: string;
   subject: string;
   context?: Object;

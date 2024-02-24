@@ -63,20 +63,20 @@ export class AuthService {
   }
 
   async login(data: LoginRequest) {
-    const user = await this.prisma.user.findUnique({
-      where: {
-        email: data.email,
-      },
-    });
+    // check user exists or not
+    const user = await this.userService.findOne(data.email);
+    if (!user) return null;
 
-    if (!user) {
-      throw new HttpException('Invalid credentials', HttpStatus.BAD_REQUEST);
-    }
-    const token = await this.createAccessToken(user);
+    // compare password with hash
+    const is_password_correct = bcrypt.compareSync(
+      data.password,
+      user.password,
+    );
+    if (!is_password_correct) return null;
 
-    return {
-      token,
-    };
+    delete user.password;
+
+    return user;
   }
 
   async storeVerificationCode(user_id: number, code: string, type: number) {

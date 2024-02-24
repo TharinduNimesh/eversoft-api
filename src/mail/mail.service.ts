@@ -15,7 +15,7 @@ export class MailService {
   async send(options: MailRequest) {
     // setup mailer options
     const mailOptions: ISendMailOptions = {
-      from: options.from,
+      from: options.from || this.configService.get("ZOHO_DEFAULT_FROM_EMAIL"),
       to: options.to,
       subject: options.subject,
     };
