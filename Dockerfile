@@ -1,5 +1,6 @@
 FROM node:20-alpine3.19 
 
+RUN apk update && apk add bash
 RUN mkdir /app
 
 RUN addgroup -S app && adduser -S app -G app

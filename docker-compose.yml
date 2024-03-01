@@ -5,6 +5,7 @@ services:
     build: ./
     ports:
       - "8080:8000"
+    restart: on-failure
     env_file:
       - .env
     command: ./docker-entrypoint.sh
@@ -12,6 +13,12 @@ services:
     image: mariadb:11.4.1-rc-jammy
     ports:
       - "3307:3306"
+    restart: on-failure
+    volumes:
+      - eversoft_db:/var/lib/mysql
     environment:
       - MARIADB_ROOT_PASSWORD=Well#ON123
       - MARIADB_DATABASE=eversoft_db
+
+volumes: 
+  eversoft_db:
