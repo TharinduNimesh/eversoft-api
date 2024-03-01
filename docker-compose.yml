@@ -1,0 +1,17 @@
+version: '3.9'
+
+services:
+  backend:
+    build: ./
+    ports:
+      - "8080:8000"
+    env_file:
+      - .env
+    command: ./docker-entrypoint.sh
+  database:
+    image: mariadb:11.4.1-rc-jammy
+    ports:
+      - "3307:3306"
+    environment:
+      - MARIADB_ROOT_PASSWORD=Well#ON123
+      - MARIADB_DATABASE=eversoft_db
