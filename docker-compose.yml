@@ -15,10 +15,7 @@ services:
       - "3307:3306"
     restart: on-failure
     volumes:
-      - eversoft_db:/var/lib/mysql
+      - ./db/data:/var/lib/mysql
     environment:
-      - MARIADB_ROOT_PASSWORD=Well#ON123
-      - MARIADB_DATABASE=eversoft_db
-
-volumes: 
-  eversoft_db:
+      - MARIADB_ROOT_PASSWORD=${MARIADB_ROOT_PASSWORD}
+      - MARIADB_DATABASE=${MARIADB_DATABASE}

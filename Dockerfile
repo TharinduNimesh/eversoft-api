@@ -18,4 +18,4 @@ RUN npm install
 COPY --chown=app:app . .
 
 EXPOSE 8000
-CMD ./docker-entrypoint.sh
+CMD ["npm", "run", "start:dev"]
