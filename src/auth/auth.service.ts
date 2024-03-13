@@ -74,9 +74,15 @@ export class AuthService {
     );
     if (!is_password_correct) return null;
 
+    // generate access token
+    const token = await this.createAccessToken(user);
+
     delete user.password;
 
-    return user;
+    return {
+      user,
+      token
+    };
   }
 
   async storeVerificationCode(user_id: number, code: string, type: number) {

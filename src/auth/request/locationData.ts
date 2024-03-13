@@ -1,37 +1,24 @@
 export interface LocationData {
   ip: string;
-  location: {
-    latitude: number;
-    longitude: number;
-    city: string;
-    reserved: boolean;
-    region: {
-      name: string;
-      code: string;
-    };
-    country: {
-      name: string;
-      code: string;
-      iso3: string;
-      capital: string;
-      tld: string;
-      population: number;
-      area: number;
-      callingCode: string;
-      postalCode: string;
-      timezone: {
-        code: string;
-        offset: string;
-      };
-      currency: {
-        name: string;
-        code: string;
-      };
-      languages: string[];
-    };
-    continent: {
-      code: string;
-      inEu: boolean;
-    };
-  };
+  city: string;
+  region: string;
+  region_code: string;
+  country_code: string;
+  country_code_iso3: string;
+  country_name: string;
+  country_capital: string;
+  country_tld: string;
+  continent_code: string;
+  in_eu: boolean;
+  postal: string;
+  latitude: number;
+  longitude: number;
+  timezone: string;
+  utc_offset: string;
+  country_calling_code: string;
+  currency: string;
+  currency_name: string;
+  languages: string;
+  asn: string;
+  org: string;
 }

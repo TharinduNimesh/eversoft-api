@@ -9,7 +9,6 @@ import {
 import { AuthService } from './auth.service';
 import { LocationData, LoginRequest, RegisterRequest } from './request';
 import { user } from '@prisma/client';
-import ipLocation from 'iplocation';
 import { MailService } from 'src/mail/mail.service';
 
 @Controller('auth')
@@ -42,41 +41,46 @@ export class AuthController {
   @Post('login')
   async login(@Body() body: LoginRequest, @Ip() ip: string) {
     // tries to login with given credentials
-    const user = await this.authService.login(body);
-    if (!user) {
+    const result = await this.authService.login(body);
+    if (!result) {
       throw new HttpException('Invalid credentials', HttpStatus.BAD_REQUEST);
     }
 
-    // get location information of the user
-    let location: string;
-    let locationdata: any;
-    try {
-      locationdata = await ipLocation('112.134.194.39');
-      locationdata = locationdata as LocationData;
-      location = `${locationdata.location.city}, ${locationdata.location.country.name}`;
-    } catch (err) {
-      location = 'Colombo, Sri Lanka';
-    }
+    // Extract user from result
+    const user = result.user;
 
-    // send secuiry login alert
-    this.mailService.send({
-      to: user.email,
-      subject: 'Security Alert: Recent Login to Your Eversoft Blog Account',
-      template: 'loginAlert.html',
-      context: {
-        name: user.name,
-        time: new Date().toLocaleString('en-US', {
-          timeZone: locationdata.country?.timezone?.code || 'Asia/Colombo',
-          timeZoneName: 'short',
-        }),
-        location,
-        ip,
-      },
-    });
+    // get location information of the user, and send security email
+    fetch(`https://ipapi.co/112.134.199.200/json/`)
+      .then((json) => json.json())
+      .then((res: LocationData) => {
+        if (res.ip.includes(":")) {
+          return;
+        }
+
+        // send secuiry login alert
+        this.mailService.send({
+          to: user.email,
+          subject: 'Security Alert: Recent Login to Your Eversoft Blog Account',
+          template: 'loginAlert.html',
+          context: {
+            name: user.name,
+            time: new Date().toLocaleString('en-US', {
+              timeZone: res.timezone || 'Asia/Colombo',
+              timeZoneName: 'short',
+            }),
+            location: `${res.city}, ${res.country_name}`,
+            ip,
+          },
+        });
+      })
+      .catch((e) => {
+        console.error(e);
+      });
 
     return {
       status: 'success',
       message: 'Login Successfully',
+      token: result.token,
     };
   }
 }
