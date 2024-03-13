@@ -7,148 +7,156 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-model blog {
-  id         Int        @id @default(autoincrement())
-  host       String     @db.VarChar(45)
-  created_at DateTime   @db.Timestamp(0)
-  bloggers   bloggers[]
-  category   category[]
-  follower   follower[]
-  post       post[]
+model bloggers {
+  id              Int             @id @default(autoincrement()) @db.UnsignedInt
+  followers_count Int             @db.UnsignedInt
+  user_id         Int             @unique(map: "user_id_UNIQUE") @db.UnsignedInt
+  users           users           @relation(fields: [user_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_bloggers_users")
+  collaborators   collaborators[]
+  followers       followers[]
+  posts           posts[]
+
+  @@index([user_id], map: "fk_bloggers_users_idx")
 }
 
-model category {
-  id                Int                 @id @default(autoincrement())
-  name              String?             @db.VarChar(45)
-  blog_id           Int
-  blog              blog                @relation(fields: [blog_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_category_blog1")
-  post_has_category post_has_category[]
+model categories {
+  id                  Int                   @id @default(autoincrement())
+  category            String                @db.VarChar(45)
+  post_has_categories post_has_categories[]
+}
 
-  @@index([blog_id], map: "fk_category_blog1_idx")
+model collaborators {
+  posts_id           Int              @db.UnsignedInt
+  blogger_id         Int              @db.UnsignedInt
+  created_at         DateTime?        @db.Timestamp(0)
+  permission_type_id Int
+  bloggers           bloggers         @relation(fields: [blogger_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_collaborators_bloggers1")
+  permission_types   permission_types @relation(fields: [permission_type_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_collaborators_permission_types1")
+  posts              posts            @relation(fields: [posts_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_users_has_posts_posts2")
+  posts_updates      posts_updates[]
+
+  @@id([posts_id, blogger_id])
+  @@index([blogger_id], map: "fk_collaborators_bloggers1_idx")
+  @@index([permission_type_id], map: "fk_collaborators_permission_types1_idx")
+  @@index([posts_id], map: "fk_users_has_posts_posts2_idx")
 }
 
 model comments {
-  id          Int      @id @default(autoincrement())
-  comment     String   @db.VarChar(45)
-  created_at  DateTime @db.Timestamp(0)
-  is_deleted  Int      @default(0) @db.TinyInt
-  follower_id Int
-  post_id     Int
-  user_id     Int
-  post        post     @relation(fields: [post_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_comments_post1")
-  user        user     @relation(fields: [user_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_comments_user1")
+  id           BigInt   @id @default(autoincrement())
+  comments     String   @db.Text
+  is_edited    Int      @default(0) @db.TinyInt
+  commented_at DateTime @db.Timestamp(0)
+  user_id      Int      @db.UnsignedInt
+  post_id      Int      @db.UnsignedInt
+  posts        posts    @relation(fields: [post_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_users_has_posts_posts1")
+  users        users    @relation(fields: [user_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_users_has_posts_users1")
 
-  @@index([post_id], map: "fk_comments_post1_idx")
-  @@index([user_id], map: "fk_comments_user1_idx")
+  @@index([post_id], map: "fk_users_has_posts_posts1_idx")
+  @@index([user_id], map: "fk_users_has_posts_users1_idx")
 }
 
-model permission_type {
-  id       Int        @id @default(autoincrement())
-  name     String     @db.VarChar(45)
-  bloggers bloggers[]
+model followers {
+  user_id     Int      @db.UnsignedInt
+  blogger_id  Int      @db.UnsignedInt
+  followed_at DateTime @db.Timestamp(0)
+  bloggers    bloggers @relation(fields: [blogger_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_users_has_bloggers_bloggers1")
+  users       users    @relation(fields: [user_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_users_has_bloggers_users1")
+
+  @@id([user_id, blogger_id])
+  @@index([blogger_id], map: "fk_users_has_bloggers_bloggers1_idx")
+  @@index([user_id], map: "fk_users_has_bloggers_users1_idx")
 }
 
-model post {
-  id                Int                 @id @default(autoincrement())
-  title             String              @db.VarChar(255)
-  body              String              @db.Text
-  min_to_read       Int
-  views             Int
-  is_visible        Int                 @db.TinyInt
-  created_at        DateTime            @db.Timestamp(0)
-  blog_id           Int
-  comments          comments[]
-  blog              blog                @relation(fields: [blog_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_post_blog1")
-  post_has_category post_has_category[]
-
-  @@index([blog_id], map: "fk_post_blog1_idx")
+model images {
+  id          Int      @id @unique(map: "id_UNIQUE") @default(autoincrement())
+  path        String   @db.VarChar(255)
+  uploaded_at DateTime @db.Timestamp(0)
 }
 
-model post_has_category {
-  post_id     Int
+model permission_types {
+  id            Int             @id @default(autoincrement())
+  type          String          @db.VarChar(255)
+  collaborators collaborators[]
+}
+
+model post_has_categories {
+  post_id     Int        @db.UnsignedInt
   category_id Int
-  category    category @relation(fields: [category_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_post_has_category_category1")
-  post        post     @relation(fields: [post_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_post_has_category_post1")
+  categories  categories @relation(fields: [category_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_posts_has_categories_categories1")
+  posts       posts      @relation(fields: [post_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_posts_has_categories_posts1")
 
   @@id([post_id, category_id])
-  @@index([category_id], map: "fk_post_has_category_category1_idx")
-  @@index([post_id], map: "fk_post_has_category_post1_idx")
+  @@index([category_id], map: "fk_posts_has_categories_categories1_idx")
+  @@index([post_id], map: "fk_posts_has_categories_posts1_idx")
 }
 
-model refresh_token {
-  id         Int      @id @default(autoincrement())
-  token      String   @db.Text
-  created_at DateTime @db.Timestamp(0)
-  used_at    DateTime @db.Timestamp(0)
+model posts {
+  id                  Int                   @id @default(autoincrement()) @db.UnsignedInt
+  title               String                @db.VarChar(255)
+  body                String                @db.LongText
+  min_to_read         Int
+  views               BigInt
+  is_hidden           Int                   @default(0) @db.TinyInt
+  posted_at           DateTime              @db.Timestamp(0)
+  updated_at          DateTime?             @db.Timestamp(0)
+  blogger_id          Int                   @db.UnsignedInt
+  collaborators       collaborators[]
+  comments            comments[]
+  post_has_categories post_has_categories[]
+  bloggers            bloggers              @relation(fields: [blogger_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_posts_bloggers1")
+  posts_updates       posts_updates[]
+
+  @@index([blogger_id], map: "fk_posts_bloggers1_idx")
 }
 
-model user_type {
-  id   Int    @id @default(autoincrement())
-  name String @db.VarChar(45)
-  user user[]
+model posts_updates {
+  id                      Int           @id @default(autoincrement())
+  title                   String        @db.VarChar(255)
+  body                    String        @db.LongText
+  description             String        @db.VarChar(255)
+  updated_at              DateTime      @db.Timestamp(0)
+  is_approved             Int           @default(0) @db.TinyInt
+  post_id                 Int           @db.UnsignedInt
+  collaborator_post_id    Int           @db.UnsignedInt
+  collaborator_blogger_id Int           @db.UnsignedInt
+  collaborators           collaborators @relation(fields: [collaborator_post_id, collaborator_blogger_id], references: [posts_id, blogger_id], onDelete: NoAction, onUpdate: NoAction, map: "fk_posts_has_collaborators_collaborators1")
+  posts                   posts         @relation(fields: [post_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_posts_has_collaborators_posts1")
+
+  @@index([collaborator_post_id, collaborator_blogger_id], map: "fk_posts_has_collaborators_collaborators1_idx")
+  @@index([post_id], map: "fk_posts_has_collaborators_posts1_idx")
 }
 
-model bloggers {
-  blog_id            Int
-  user_id            Int
-  created_at         DateTime?       @db.Timestamp(0)
-  permission_type_id Int
-  blog               blog            @relation(fields: [blog_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_blog_has_user_blog2")
-  user               user            @relation(fields: [user_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_blog_has_user_user2")
-  permission_type    permission_type @relation(fields: [permission_type_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_bloggers_permission_type1")
-
-  @@id([blog_id, user_id])
-  @@index([blog_id], map: "fk_blog_has_user_blog2_idx")
-  @@index([user_id], map: "fk_blog_has_user_user2_idx")
-  @@index([permission_type_id], map: "fk_bloggers_permission_type1_idx")
+model user_status {
+  id     Int     @id @default(autoincrement())
+  status String? @db.VarChar(45)
+  users  users[]
 }
 
-model follower {
-  blog_id     Int
-  user_id     Int
-  followed_at DateTime? @db.Timestamp(0)
-  blog        blog      @relation(fields: [blog_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_blog_has_user_blog1")
-  user        user      @relation(fields: [user_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_blog_has_user_user1")
+model users {
+  id             Int             @id @default(autoincrement()) @db.UnsignedInt
+  name           String          @db.VarChar(255)
+  profile_img    String          @default("default.png") @db.VarChar(255)
+  email          String          @unique(map: "email_UNIQUE") @db.VarChar(255)
+  password       String          @db.VarChar(255)
+  is_verified    Int             @default(0) @db.TinyInt
+  joined_at      DateTime        @db.Timestamp(0)
+  user_status_id Int
+  bloggers       bloggers?
+  comments       comments[]
+  followers      followers[]
+  user_status    user_status     @relation(fields: [user_status_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_users_user_status1")
+  verifications  verifications[]
 
-  @@id([blog_id, user_id])
-  @@index([blog_id], map: "fk_blog_has_user_blog1_idx")
-  @@index([user_id], map: "fk_blog_has_user_user1_idx")
-}
-
-model user {
-  id            Int             @id @default(autoincrement())
-  name          String          @db.VarChar(80)
-  email         String          @unique(map: "email_UNIQUE") @db.VarChar(60)
-  password      String          @db.VarChar(255)
-  is_verified   Int             @default(0) @db.TinyInt
-  created_at    DateTime        @db.Timestamp(0)
-  user_type_id  Int
-  bloggers      bloggers[]
-  comments      comments[]
-  follower      follower[]
-  user_type     user_type       @relation(fields: [user_type_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_user_user_type1")
-  verifications verifications[]
-
-  @@index([user_type_id], map: "fk_user_user_type1_idx")
+  @@index([user_status_id], map: "fk_users_user_status1_idx")
 }
 
 model verifications {
-  id                   BigInt             @id @default(autoincrement()) @db.UnsignedBigInt
-  code                 String             @db.Text
-  is_used              Int                @default(0) @db.TinyInt
-  expires_at           DateTime           @db.Timestamp(0)
-  created_at           DateTime           @db.Timestamp(0)
-  user_id              Int
-  verification_type_id Int
-  user                 user               @relation(fields: [user_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_verifications_user1")
-  verification_types   verification_types @relation(fields: [verification_type_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_verifications_verification_types1")
+  id         Int      @id @default(autoincrement()) @db.UnsignedInt
+  code       String   @db.VarChar(255)
+  is_used    Int      @default(0) @db.TinyInt
+  expires_at DateTime @db.Timestamp(0)
+  user_id    Int      @db.UnsignedInt
+  users      users    @relation(fields: [user_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_verifications_users1")
 
-  @@index([user_id], map: "fk_verifications_user1_idx")
-  @@index([verification_type_id], map: "fk_verifications_verification_types1_idx")
-}
-
-model verification_types {
-  id            Int             @id @default(autoincrement())
-  type          String          @db.VarChar(255)
-  verifications verifications[]
+  @@index([user_id], map: "fk_verifications_users1_idx")
 }

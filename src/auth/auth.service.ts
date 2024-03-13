@@ -1,10 +1,10 @@
-import { HttpException, HttpStatus, Injectable } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { RegisterRequest, LoginRequest } from './request/index';
 import * as bcrypt from 'bcrypt';
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
-import { user } from '@prisma/client';
+import { users } from '@prisma/client';
 import { MailService } from 'src/mail/mail.service';
 import { UserService } from 'src/user/user.service';
 
@@ -20,35 +20,31 @@ export class AuthService {
 
   async register(data: RegisterRequest) {
     // check if user already exists
-    let user: user = await this.userService.findOne(data.email);
+    let user: users = await this.userService.findOne(data.email);
     if (user) return null;
 
     // validate user email & get user type
     const COMPANY_EMAIL_REGEX = /eversoft\.lk$/;
-    let user_type_id: number;
-    let template: string;
-    let subject: string;
+    let is_a_blogger = false;
+    let template = 'userWelcome.html';
+    let subject = 'Welcome to the Eversoft Community!';
 
     if (COMPANY_EMAIL_REGEX.test(data.email)) {
-      user_type_id = 2; // Blogger if he has eversoft email
+      is_a_blogger = true; // Blogger if he has eversoft email
       template = 'bloggerWelcome.html';
       subject = 'Welcome to the Eversoft Blogging Community!';
-    } else {
-      user_type_id = 1; // User if he doesn't have eversoft email
-      template = 'userWelcome.html';
-      subject = 'Welcome to the Eversoft Community!';
     }
 
     // store user in the DB
-    user = await this.userService.create(data, user_type_id);
+    user = await this.userService.create(data, is_a_blogger);
 
     // generate verification code and store in DB
     const verificationCode = this.generateCode();
-    this.storeVerificationCode(user.id, verificationCode, 1); // Type 1 is EMAIL_VALIDATION
+    this.storeVerificationCode(user.id, verificationCode);
 
     // send welcome email with email verification code
     this.mailService.send({
-      from: this.configService.get('ZOHO_DEFAULT_FROM_EMAIL'),
+      from: `Eversoft Community <${this.configService.get('ZOHO_DEFAULT_FROM_EMAIL')}>`,
       to: user.email,
       subject: subject,
       template,
@@ -58,6 +54,9 @@ export class AuthService {
         frontend_url: this.configService.get('FRONTEND_URL'),
       },
     });
+
+    //  Remove Sensitive informations
+    delete user.password;
 
     return user;
   }
@@ -77,31 +76,30 @@ export class AuthService {
     // generate access token
     const token = await this.createAccessToken(user);
 
+    //  Remove Sensitive informations
     delete user.password;
 
     return {
       user,
-      token
+      token,
     };
   }
 
-  async storeVerificationCode(user_id: number, code: string, type: number) {
+  async storeVerificationCode(user_id: number, code: string) {
     const date = new Date();
     // Add 15 minutes as milliseconds
     const millisecondsToAdd = 15 * 60 * 1000;
 
     await this.prisma.verifications.create({
       data: {
-        verification_type_id: type,
-        created_at: date,
-        expires_at: new Date(date.getTime() + millisecondsToAdd),
         user_id,
         code,
+        expires_at: new Date(date.getTime() + millisecondsToAdd),
       },
     });
   }
 
-  async createAccessToken(user: user) {
+  async createAccessToken(user: users) {
     const payload = {
       id: user.id,
       name: user.name,

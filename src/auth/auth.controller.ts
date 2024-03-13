@@ -8,19 +8,21 @@ import {
 } from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { LocationData, LoginRequest, RegisterRequest } from './request';
-import { user } from '@prisma/client';
+import { users } from '@prisma/client';
 import { MailService } from 'src/mail/mail.service';
+import { ConfigService } from '@nestjs/config';
 
 @Controller('auth')
 export class AuthController {
   constructor(
     private authService: AuthService,
     private mailService: MailService,
+    private configService: ConfigService,
   ) {}
 
   @Post('register')
   async register(@Body() body: RegisterRequest) {
-    const user: user = await this.authService.register(body);
+    const user: users = await this.authService.register(body);
 
     if (!user) {
       throw new HttpException(
@@ -47,10 +49,10 @@ export class AuthController {
     }
 
     // Extract user from result
-    const user = result.user;
+    const user: users = result.user;
 
     // get location information of the user, and send security email
-    fetch(`https://ipapi.co/112.134.199.200/json/`)
+    fetch(`https://ipapi.co/${ip}/json/`)
       .then((json) => json.json())
       .then((res: LocationData) => {
         if (res.ip.includes(":")) {
@@ -60,6 +62,7 @@ export class AuthController {
         // send secuiry login alert
         this.mailService.send({
           to: user.email,
+          from: `Eversoft Security Team <${this.configService.get('ZOHO_DEFAULT_FROM_EMAIL')}>`,
           subject: 'Security Alert: Recent Login to Your Eversoft Blog Account',
           template: 'loginAlert.html',
           context: {
